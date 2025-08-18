@@ -4,8 +4,23 @@ import { WorkoutEntry } from '../types';
 import { Calendar, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
 
 const HistoryScreen: React.FC = () => {
-  const [workouts] = useState<WorkoutEntry[]>(() => storage.getWorkouts());
+  const [workouts, setWorkouts] = useState<WorkoutEntry[]>([]);
+  const [loading, setLoading] = useState(true);
   const [expandedDates, setExpandedDates] = useState<Set<string>>(new Set());
+
+  React.useEffect(() => {
+    const loadWorkouts = async () => {
+      try {
+        const data = await storage.getWorkouts();
+        setWorkouts(data);
+      } catch (error) {
+        console.error('Error loading workouts:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadWorkouts();
+  }, []);
 
   const groupedWorkouts = useMemo(() => {
     const groups: { [key: string]: WorkoutEntry[] } = {};
@@ -38,8 +53,12 @@ const HistoryScreen: React.FC = () => {
 
   const deleteWorkout = (workoutId: string) => {
     if (confirm('Are you sure you want to delete this workout?')) {
-      storage.deleteWorkout(workoutId);
-      window.location.reload(); // Simple refresh to update the list
+      storage.deleteWorkout(workoutId).then(() => {
+        setWorkouts(prev => prev.filter(w => w.id !== workoutId));
+      }).catch((error) => {
+        console.error('Error deleting workout:', error);
+        alert('Error deleting workout. Please try again.');
+      });
     }
   };
 
@@ -66,6 +85,18 @@ const HistoryScreen: React.FC = () => {
   const getTotalVolume = (sets: WorkoutEntry['sets']) => {
     return sets.reduce((total, set) => total + (set.reps * set.weight), 0);
   };
+
+  if (loading) {
+    return (
+      <div className="p-4 pb-20">
+        <h1 className="text-xl font-bold text-gray-900 mb-6">Workout History</h1>
+        <div className="text-center py-12">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading workouts...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (workouts.length === 0) {
     return (

@@ -12,7 +12,15 @@ interface WorkoutListProps {
 
 const WorkoutList: React.FC<WorkoutListProps> = ({ category, onExerciseSelect, onBack }) => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [favorites, setFavorites] = React.useState<string[]>(() => storage.getFavorites());
+  const [favorites, setFavorites] = React.useState<string[]>([]);
+
+  React.useEffect(() => {
+    const loadFavorites = async () => {
+      const favs = await storage.getFavorites();
+      setFavorites(favs);
+    };
+    loadFavorites();
+  }, []);
 
   const categoryName = category.charAt(0).toUpperCase() + category.slice(1).replace('-', ' ');
   
@@ -38,8 +46,9 @@ const WorkoutList: React.FC<WorkoutListProps> = ({ category, onExerciseSelect, o
 
   const toggleFavorite = (exerciseId: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    storage.toggleFavorite(exerciseId);
-    setFavorites(storage.getFavorites());
+    storage.toggleFavorite(exerciseId).then(() => {
+      storage.getFavorites().then(setFavorites);
+    });
   };
 
   return (

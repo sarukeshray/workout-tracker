@@ -43,18 +43,20 @@ const TrackingScreen: React.FC<TrackingScreenProps> = ({ exerciseId, onBack, onS
       return;
     }
 
-    const workoutEntry: WorkoutEntry = {
-      id: Date.now().toString(),
+    const workoutData = {
       exerciseId: exercise.id,
       exerciseName: exercise.name,
+      category: exercise.category,
       sets: validSets,
-      notes: notes.trim(),
-      date: new Date().toISOString(),
-      category: exercise.category
+      notes: notes.trim()
     };
 
-    storage.saveWorkout(workoutEntry);
-    onSaved();
+    storage.saveWorkout(workoutData).then(() => {
+      onSaved();
+    }).catch((error) => {
+      console.error('Error saving workout:', error);
+      alert('Error saving workout. Please try again.');
+    });
   };
 
   return (

@@ -1,4 +1,8 @@
 import React, { useState } from 'react';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+import LoginScreen from './components/LoginScreen';
+import RegisterScreen from './components/RegisterScreen';
+import Header from './components/Header';
 import Navigation from './components/Navigation';
 import HomeScreen from './components/HomeScreen';
 import WorkoutList from './components/WorkoutList';
@@ -7,8 +11,11 @@ import HistoryScreen from './components/HistoryScreen';
 import ProgressScreen from './components/ProgressScreen';
 
 type Screen = 'home' | 'category' | 'exercise' | 'tracking' | 'history' | 'progress';
+type AuthScreen = 'login' | 'register';
 
-function App() {
+const AppContent: React.FC = () => {
+  const { user, loading } = useAuth();
+  const [authScreen, setAuthScreen] = useState<AuthScreen>('login');
   const [currentScreen, setCurrentScreen] = useState<Screen>('home');
   const [selectedCategory, setSelectedCategory] = useState<string>('');
   const [selectedExercise, setSelectedExercise] = useState<string>('');
@@ -43,8 +50,33 @@ function App() {
     }, 100);
   };
 
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <>
+        {authScreen === 'login' && (
+          <LoginScreen onSwitchToRegister={() => setAuthScreen('register')} />
+        )}
+        {authScreen === 'register' && (
+          <RegisterScreen onSwitchToLogin={() => setAuthScreen('login')} />
+        )}
+      </>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
+      <Header />
       <main className="max-w-md mx-auto bg-white min-h-screen shadow-lg">
         {currentScreen === 'home' && (
           <HomeScreen onCategorySelect={handleCategorySelect} />
@@ -76,6 +108,14 @@ function App() {
         onScreenChange={handleScreenChange} 
       />
     </div>
+  );
+};
+
+function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   );
 }
 

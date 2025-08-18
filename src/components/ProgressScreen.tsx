@@ -6,7 +6,22 @@ import { TrendingUp, Calendar } from 'lucide-react';
 
 const ProgressScreen: React.FC = () => {
   const [selectedExercise, setSelectedExercise] = useState<string>('');
-  const [workouts] = useState<WorkoutEntry[]>(() => storage.getWorkouts());
+  const [workouts, setWorkouts] = useState<WorkoutEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  React.useEffect(() => {
+    const loadWorkouts = async () => {
+      try {
+        const data = await storage.getWorkouts();
+        setWorkouts(data);
+      } catch (error) {
+        console.error('Error loading workouts:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadWorkouts();
+  }, []);
 
   // Get unique exercises from workout history
   const availableExercises = useMemo(() => {
@@ -59,6 +74,18 @@ const ProgressScreen: React.FC = () => {
       absolute: Math.abs(last - first)
     };
   };
+
+  if (loading) {
+    return (
+      <div className="p-4 pb-20">
+        <h1 className="text-xl font-bold text-gray-900 mb-6">Progress Tracking</h1>
+        <div className="text-center py-12">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading progress data...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (availableExercises.length === 0) {
     return (
