@@ -39,7 +39,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onSwitchToRegister }) => {
             </div>
           </div>
           <h1 className="text-2xl font-bold text-gray-900 mb-2">Welcome Back</h1>
-          <p className="text-gray-600">Sign in to track your workouts</p>
+          <p className="text-gray-600">Sign in with Firebase to track your workouts</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">

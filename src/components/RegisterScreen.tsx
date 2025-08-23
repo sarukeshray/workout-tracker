@@ -59,7 +59,7 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onSwitchToLogin }) => {
             </div>
           </div>
           <h1 className="text-2xl font-bold text-gray-900 mb-2">Create Account</h1>
-          <p className="text-gray-600">Join us to start tracking your workouts</p>
+          <p className="text-gray-600">Create Firebase account to start tracking your workouts</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">

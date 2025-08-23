@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { auth } from '../config/firebase';
 import { WorkoutEntry } from '../types';
 
 const API_BASE_URL = 'http://localhost:5000/api';
@@ -8,10 +9,11 @@ const api = axios.create({
   baseURL: API_BASE_URL,
 });
 
-// Add auth token to requests
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
-  if (token) {
+// Add Firebase auth token to requests
+api.interceptors.request.use(async (config) => {
+  const user = auth.currentUser;
+  if (user) {
+    const token = await user.getIdToken();
     config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
@@ -22,22 +24,16 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      window.location.href = '/login';
+      // Token expired or invalid, Firebase will handle re-authentication
+      console.error('Authentication error:', error.response.data.message);
     }
     return Promise.reject(error);
   }
 );
 
 export const authAPI = {
-  register: async (userData: { username: string; email: string; password: string }) => {
+  register: async (userData: { uid: string; username: string; email: string }) => {
     const response = await api.post('/auth/register', userData);
-    return response.data;
-  },
-
-  login: async (credentials: { email: string; password: string }) => {
-    const response = await api.post('/auth/login', credentials);
     return response.data;
   },
 

@@ -1,18 +1,27 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { 
+  createUserWithEmailAndPassword, 
+  signInWithEmailAndPassword, 
+  signOut, 
+  onAuthStateChanged,
+  updateProfile,
+  User as FirebaseUser
+} from 'firebase/auth';
+import { auth } from '../config/firebase';
 import { authAPI } from '../utils/api';
 
 interface User {
-  id: string;
+  uid: string;
   username: string;
   email: string;
 }
 
 interface AuthContextType {
   user: User | null;
-  token: string | null;
+  firebaseUser: FirebaseUser | null;
   login: (email: string, password: string) => Promise<void>;
   register: (username: string, email: string, password: string) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
   loading: boolean;
 }
 
@@ -28,74 +37,90 @@ export const useAuth = () => {
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [token, setToken] = useState<string | null>(null);
+  const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const initAuth = async () => {
-      const savedToken = localStorage.getItem('token');
-      const savedUser = localStorage.getItem('user');
-
-      if (savedToken && savedUser) {
-        setToken(savedToken);
-        setUser(JSON.parse(savedUser));
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser) {
+        setFirebaseUser(firebaseUser);
         
+        // Get user data from our backend
         try {
-          // Verify token is still valid
-          await authAPI.getCurrentUser();
+          const response = await authAPI.getCurrentUser();
+          setUser(response.user);
         } catch (error) {
-          // Token is invalid, clear auth
-          localStorage.removeItem('token');
-          localStorage.removeItem('user');
-          setToken(null);
-          setUser(null);
+          console.error('Error getting user data:', error);
+          // If backend call fails, create user object from Firebase data
+          setUser({
+            uid: firebaseUser.uid,
+            email: firebaseUser.email || '',
+            username: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'User'
+          });
         }
+      } else {
+        setFirebaseUser(null);
+        setUser(null);
       }
-      
       setLoading(false);
-    };
+    });
 
-    initAuth();
+    return unsubscribe;
   }, []);
-
-  const login = async (email: string, password: string) => {
-    try {
-      const response = await authAPI.login({ email, password });
-      
-      setToken(response.token);
-      setUser(response.user);
-      
-      localStorage.setItem('token', response.token);
-      localStorage.setItem('user', JSON.stringify(response.user));
-    } catch (error: any) {
-      throw new Error(error.response?.data?.message || 'Login failed');
-    }
-  };
 
   const register = async (username: string, email: string, password: string) => {
     try {
-      const response = await authAPI.register({ username, email, password });
+      // Create user with Firebase Auth
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       
-      setToken(response.token);
-      setUser(response.user);
-      
-      localStorage.setItem('token', response.token);
-      localStorage.setItem('user', JSON.stringify(response.user));
+      // Update display name
+      await updateProfile(userCredential.user, {
+        displayName: username
+      });
+
+      // Save additional user data to our backend
+      try {
+        await authAPI.register({
+          uid: userCredential.user.uid,
+          email,
+          username
+        });
+      } catch (error) {
+        console.error('Error saving user data to backend:', error);
+      }
+
+      setUser({
+        uid: userCredential.user.uid,
+        email,
+        username
+      });
     } catch (error: any) {
-      throw new Error(error.response?.data?.message || 'Registration failed');
+      throw new Error(error.message || 'Registration failed');
     }
   };
 
-  const logout = () => {
-    setToken(null);
-    setUser(null);
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+  const login = async (email: string, password: string) => {
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+      // User state will be updated by onAuthStateChanged
+    } catch (error: any) {
+      throw new Error(error.message || 'Login failed');
+    }
+  };
+
+  const logout = async () => {
+    try {
+      await signOut(auth);
+      setUser(null);
+      setFirebaseUser(null);
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
   };
 
   const value = {
     user,
-    token,
+    firebaseUser,
     login,
     register,
     logout,

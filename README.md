@@ -1,29 +1,30 @@
-# Workout Tracker with Backend
+# Firebase Workout Tracker
 
-A comprehensive strength training workout tracker with MongoDB backend and user authentication.
+A comprehensive strength training workout tracker with Firebase backend and user authentication.
 
 ## Features
 
-- **User Authentication**: Register/Login with JWT tokens
+- **Firebase Authentication**: Register/Login with email/password
+- **Firestore Database**: Real-time data storage and synchronization
 - **Workout Tracking**: Track sets, reps, weight, and notes
 - **Exercise Database**: 50+ exercises across 8 categories
 - **Progress Visualization**: Charts showing performance over time
 - **Favorites System**: Mark frequently used exercises
-- **Offline Support**: Local storage fallback when API is unavailable
+- **Offline Support**: Local storage fallback when Firebase is unavailable
 
 ## Tech Stack
 
 ### Frontend
 - React 18 with TypeScript
 - Tailwind CSS for styling
-- Axios for API calls
+- Firebase SDK for authentication and database
 - Context API for state management
 
 ### Backend
 - Node.js with Express
-- MongoDB with Mongoose
-- JWT authentication
-- bcryptjs for password hashing
+- Firebase Admin SDK
+- Firestore for data storage
+- Firebase Authentication
 - CORS enabled
 
 ## Setup Instructions
@@ -34,30 +35,59 @@ A comprehensive strength training workout tracker with MongoDB backend and user 
 npm install
 ```
 
-### 2. MongoDB Setup
+### 2. Firebase Setup
 
-#### Option A: Local MongoDB
-1. Install MongoDB locally
-2. Start MongoDB service
-3. Database will be created automatically at `mongodb://localhost:27017/workout-tracker`
+#### Step 1: Create Firebase Project
+1. Go to [Firebase Console](https://console.firebase.google.com/)
+2. Click "Create a project"
+3. Enter project name (e.g., "workout-tracker")
+4. Enable Google Analytics (optional)
+5. Create project
 
-#### Option B: MongoDB Atlas (Cloud)
-1. Create account at [MongoDB Atlas](https://www.mongodb.com/atlas)
-2. Create a new cluster
-3. Get connection string
-4. Update `.env` file with your connection string
+#### Step 2: Enable Authentication
+1. In Firebase Console, go to "Authentication"
+2. Click "Get started"
+3. Go to "Sign-in method" tab
+4. Enable "Email/Password" provider
+5. Save changes
+
+#### Step 3: Create Firestore Database
+1. In Firebase Console, go to "Firestore Database"
+2. Click "Create database"
+3. Choose "Start in test mode" (for development)
+4. Select location closest to you
+5. Create database
+
+#### Step 4: Get Firebase Configuration
+1. Go to Project Settings (gear icon)
+2. Scroll down to "Your apps"
+3. Click "Web app" icon (</>)
+4. Register app with nickname
+5. Copy the config object
+
+#### Step 5: Generate Service Account Key
+1. Go to Project Settings → Service accounts
+2. Click "Generate new private key"
+3. Download the JSON file
+4. Keep this file secure (never commit to git)
 
 ### 3. Environment Configuration
 
-Create/update `.env` file:
+Update `.env` file with your Firebase credentials:
 
 ```env
-# MongoDB Connection
-MONGODB_URI=mongodb://localhost:27017/workout-tracker
-# or for Atlas: mongodb+srv://username:password@cluster.mongodb.net/workout-tracker
+# Firebase Admin (Backend) - from service account JSON
+FIREBASE_PROJECT_ID=your-project-id
+FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nYOUR_PRIVATE_KEY_HERE\n-----END PRIVATE KEY-----\n"
+FIREBASE_CLIENT_EMAIL=firebase-adminsdk-xxxxx@your-project-id.iam.gserviceaccount.com
 
-# JWT Secret (change this!)
-JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
+# Firebase Client (Frontend) - from web app config
+VITE_FIREBASE_API_KEY=your-api-key
+VITE_FIREBASE_AUTH_DOMAIN=your-project-id.firebaseapp.com
+VITE_FIREBASE_PROJECT_ID=your-project-id
+VITE_FIREBASE_STORAGE_BUCKET=your-project-id.appspot.com
+VITE_FIREBASE_MESSAGING_SENDER_ID=123456789
+VITE_FIREBASE_APP_ID=1:123456789:web:abcdef123456
 
 # Server Configuration
 PORT=5000
@@ -78,22 +108,56 @@ Terminal 2 - Start Frontend:
 npm run dev
 ```
 
-#### Or use nodemon for backend auto-restart:
-```bash
-npm run dev:server
-```
-
 ### 5. Access the Application
 
 - Frontend: http://localhost:5173
 - Backend API: http://localhost:5000
 
+## Firebase Collections Structure
+
+### Users Collection (`users`)
+```javascript
+{
+  uid: "firebase-user-id",
+  email: "user@example.com",
+  username: "username",
+  createdAt: "2024-01-01T00:00:00.000Z"
+}
+```
+
+### Workouts Collection (`workouts`)
+```javascript
+{
+  id: "auto-generated-id",
+  userId: "firebase-user-id",
+  exerciseId: "bench-press",
+  exerciseName: "Bench Press",
+  category: "chest",
+  sets: [
+    { reps: 10, weight: 80 },
+    { reps: 8, weight: 85 }
+  ],
+  notes: "Good form, felt strong",
+  date: "2024-01-01T00:00:00.000Z",
+  createdAt: "2024-01-01T00:00:00.000Z"
+}
+```
+
+### Favorites Collection (`favorites`)
+```javascript
+{
+  id: "auto-generated-id",
+  userId: "firebase-user-id",
+  exerciseId: "bench-press",
+  createdAt: "2024-01-01T00:00:00.000Z"
+}
+```
+
 ## API Endpoints
 
 ### Authentication
-- `POST /api/auth/register` - Register new user
-- `POST /api/auth/login` - Login user
-- `GET /api/auth/me` - Get current user
+- `POST /api/auth/register` - Save additional user data after Firebase registration
+- `GET /api/auth/me` - Get current user data
 
 ### Workouts
 - `GET /api/workouts` - Get user's workouts
@@ -105,160 +169,103 @@ npm run dev:server
 - `GET /api/favorites` - Get user's favorites
 - `POST /api/favorites/toggle` - Toggle exercise favorite
 
-## MongoDB Connection Guide
+## Firebase Security Rules
 
-### Local MongoDB Setup
-
-1. **Install MongoDB**:
-   - Windows: Download from MongoDB website
-   - Mac: `brew install mongodb-community`
-   - Linux: Follow MongoDB installation guide
-
-2. **Start MongoDB**:
-   ```bash
-   # Mac/Linux
-   brew services start mongodb-community
-   
-   # Windows
-   net start MongoDB
-   ```
-
-3. **Verify Connection**:
-   ```bash
-   mongosh
-   ```
-
-### MongoDB Atlas Setup
-
-1. **Create Account**: Go to [MongoDB Atlas](https://www.mongodb.com/atlas)
-
-2. **Create Cluster**:
-   - Choose free tier (M0)
-   - Select region closest to you
-   - Create cluster
-
-3. **Setup Database Access**:
-   - Go to Database Access
-   - Add new database user
-   - Choose password authentication
-   - Give read/write access
-
-4. **Setup Network Access**:
-   - Go to Network Access
-   - Add IP address (0.0.0.0/0 for development)
-
-5. **Get Connection String**:
-   - Go to Clusters → Connect
-   - Choose "Connect your application"
-   - Copy connection string
-   - Replace `<password>` with your database user password
-
-6. **Update .env**:
-   ```env
-   MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/workout-tracker
-   ```
-
-## Database Schema
-
-### Users Collection
+### Firestore Rules (for production)
 ```javascript
-{
-  _id: ObjectId,
-  username: String,
-  email: String,
-  password: String (hashed),
-  createdAt: Date
-}
-```
-
-### Workouts Collection
-```javascript
-{
-  _id: ObjectId,
-  userId: ObjectId,
-  exerciseId: String,
-  exerciseName: String,
-  category: String,
-  sets: [{
-    reps: Number,
-    weight: Number
-  }],
-  notes: String,
-  date: Date,
-  createdAt: Date
-}
-```
-
-### Favorites Collection
-```javascript
-{
-  _id: ObjectId,
-  userId: ObjectId,
-  exerciseId: String,
-  createdAt: Date
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Users can only access their own data
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Workouts are user-specific
+    match /workouts/{workoutId} {
+      allow read, write: if request.auth != null && request.auth.uid == resource.data.userId;
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
+    }
+    
+    // Favorites are user-specific
+    match /favorites/{favoriteId} {
+      allow read, write: if request.auth != null && request.auth.uid == resource.data.userId;
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
+    }
+  }
 }
 ```
 
 ## Security Features
 
-- Password hashing with bcryptjs
-- JWT token authentication
-- Protected API routes
-- Input validation
-- CORS configuration
-- Environment variables for secrets
+- Firebase Authentication with email/password
+- Firestore security rules for data protection
+- Server-side token verification with Firebase Admin SDK
+- User-specific data isolation
+- Environment variables for sensitive configuration
 
 ## Offline Support
 
 The app includes offline functionality:
-- Local storage fallback when API is unavailable
+- Local storage fallback when Firebase is unavailable
 - Automatic sync when connection is restored
-- Works without internet after initial load
+- Works without internet after initial authentication
 
 ## Production Deployment
 
-1. **Environment Variables**:
-   - Change JWT_SECRET to a secure random string
-   - Use production MongoDB URI
-   - Set NODE_ENV=production
+1. **Update Firestore Rules**:
+   - Change from "test mode" to production rules
+   - Implement proper security rules (see above)
 
-2. **Build Frontend**:
+2. **Environment Variables**:
+   - Use production Firebase project
+   - Secure environment variable storage
+
+3. **Build Frontend**:
    ```bash
    npm run build
    ```
 
-3. **Deploy Backend**:
-   - Use services like Heroku, Railway, or DigitalOcean
-   - Ensure MongoDB Atlas is accessible
-
-4. **Update API URL**:
-   - Change API_BASE_URL in `src/utils/api.ts` to production URL
+4. **Deploy Backend**:
+   - Use services like Vercel, Netlify Functions, or Google Cloud Functions
+   - Ensure Firebase Admin SDK credentials are secure
 
 ## Troubleshooting
 
 ### Common Issues
 
-1. **MongoDB Connection Failed**:
-   - Check if MongoDB is running
-   - Verify connection string in .env
-   - Check network access for Atlas
+1. **Firebase Connection Failed**:
+   - Check Firebase project configuration
+   - Verify API keys in .env file
+   - Ensure Firestore database is created
 
-2. **JWT Token Issues**:
-   - Clear localStorage and login again
-   - Check JWT_SECRET in .env
+2. **Authentication Issues**:
+   - Verify Email/Password provider is enabled
+   - Check Firebase Auth domain configuration
+   - Clear browser cache and try again
 
-3. **CORS Errors**:
-   - Ensure backend is running on port 5000
-   - Check CORS configuration in server.js
+3. **Permission Denied**:
+   - Check Firestore security rules
+   - Ensure user is properly authenticated
+   - Verify user ID matches document ownership
 
 4. **API Calls Failing**:
    - Check if backend server is running
-   - Verify API endpoints in browser/Postman
+   - Verify Firebase Admin SDK configuration
    - Check browser console for errors
 
 ### Development Tips
 
-- Use MongoDB Compass for database visualization
-- Use Postman to test API endpoints
+- Use Firebase Console to view data and debug
 - Check browser Network tab for API call debugging
 - Monitor server logs for backend issues
+- Use Firebase Auth emulator for local development
+
+## Firebase Advantages
+
+- **Real-time Updates**: Data syncs across devices instantly
+- **Scalability**: Automatically scales with your user base
+- **Security**: Built-in authentication and security rules
+- **Offline Support**: Built-in offline capabilities
+- **No Server Management**: Serverless architecture
+- **Analytics**: Built-in user analytics and crash reporting

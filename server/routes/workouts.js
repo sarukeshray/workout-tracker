@@ -1,15 +1,26 @@
 const express = require('express');
-const Workout = require('../models/Workout');
-const auth = require('../middleware/auth');
+const { db } = require('../config/firebase');
+const authMiddleware = require('../middleware/auth');
 
 const router = express.Router();
 
 // Get all workouts for user
-router.get('/', auth, async (req, res) => {
+router.get('/', authMiddleware, async (req, res) => {
   try {
-    const workouts = await Workout.find({ userId: req.user._id })
-      .sort({ date: -1 });
-    
+    const workoutsRef = db.collection('workouts');
+    const snapshot = await workoutsRef
+      .where('userId', '==', req.user.uid)
+      .orderBy('date', 'desc')
+      .get();
+
+    const workouts = [];
+    snapshot.forEach(doc => {
+      workouts.push({
+        id: doc.id,
+        ...doc.data()
+      });
+    });
+
     res.json(workouts);
   } catch (error) {
     console.error('Get workouts error:', error);
@@ -18,7 +29,7 @@ router.get('/', auth, async (req, res) => {
 });
 
 // Create new workout
-router.post('/', auth, async (req, res) => {
+router.post('/', authMiddleware, async (req, res) => {
   try {
     const { exerciseId, exerciseName, category, sets, notes } = req.body;
 
@@ -34,17 +45,23 @@ router.post('/', auth, async (req, res) => {
       }
     }
 
-    const workout = new Workout({
-      userId: req.user._id,
+    const workoutData = {
+      userId: req.user.uid,
       exerciseId,
       exerciseName,
       category,
       sets,
-      notes: notes || ''
-    });
+      notes: notes || '',
+      date: new Date().toISOString(),
+      createdAt: new Date().toISOString()
+    };
 
-    await workout.save();
-    res.status(201).json(workout);
+    const docRef = await db.collection('workouts').add(workoutData);
+    
+    res.status(201).json({
+      id: docRef.id,
+      ...workoutData
+    });
   } catch (error) {
     console.error('Create workout error:', error);
     res.status(500).json({ message: 'Server error' });
@@ -52,18 +69,21 @@ router.post('/', auth, async (req, res) => {
 });
 
 // Delete workout
-router.delete('/:id', auth, async (req, res) => {
+router.delete('/:id', authMiddleware, async (req, res) => {
   try {
-    const workout = await Workout.findOne({
-      _id: req.params.id,
-      userId: req.user._id
-    });
+    const workoutRef = db.collection('workouts').doc(req.params.id);
+    const workout = await workoutRef.get();
 
-    if (!workout) {
+    if (!workout.exists) {
       return res.status(404).json({ message: 'Workout not found' });
     }
 
-    await Workout.findByIdAndDelete(req.params.id);
+    const workoutData = workout.data();
+    if (workoutData.userId !== req.user.uid) {
+      return res.status(403).json({ message: 'Not authorized to delete this workout' });
+    }
+
+    await workoutRef.delete();
     res.json({ message: 'Workout deleted successfully' });
   } catch (error) {
     console.error('Delete workout error:', error);
@@ -72,12 +92,22 @@ router.delete('/:id', auth, async (req, res) => {
 });
 
 // Get workouts by exercise
-router.get('/exercise/:exerciseId', auth, async (req, res) => {
+router.get('/exercise/:exerciseId', authMiddleware, async (req, res) => {
   try {
-    const workouts = await Workout.find({
-      userId: req.user._id,
-      exerciseId: req.params.exerciseId
-    }).sort({ date: 1 });
+    const workoutsRef = db.collection('workouts');
+    const snapshot = await workoutsRef
+      .where('userId', '==', req.user.uid)
+      .where('exerciseId', '==', req.params.exerciseId)
+      .orderBy('date', 'asc')
+      .get();
+
+    const workouts = [];
+    snapshot.forEach(doc => {
+      workouts.push({
+        id: doc.id,
+        ...doc.data()
+      });
+    });
 
     res.json(workouts);
   } catch (error) {

@@ -1,14 +1,22 @@
 const express = require('express');
-const Favorite = require('../models/Favorite');
-const auth = require('../middleware/auth');
+const { db } = require('../config/firebase');
+const authMiddleware = require('../middleware/auth');
 
 const router = express.Router();
 
 // Get user's favorites
-router.get('/', auth, async (req, res) => {
+router.get('/', authMiddleware, async (req, res) => {
   try {
-    const favorites = await Favorite.find({ userId: req.user._id });
-    const exerciseIds = favorites.map(fav => fav.exerciseId);
+    const favoritesRef = db.collection('favorites');
+    const snapshot = await favoritesRef
+      .where('userId', '==', req.user.uid)
+      .get();
+
+    const exerciseIds = [];
+    snapshot.forEach(doc => {
+      exerciseIds.push(doc.data().exerciseId);
+    });
+
     res.json(exerciseIds);
   } catch (error) {
     console.error('Get favorites error:', error);
@@ -17,7 +25,7 @@ router.get('/', auth, async (req, res) => {
 });
 
 // Toggle favorite
-router.post('/toggle', auth, async (req, res) => {
+router.post('/toggle', authMiddleware, async (req, res) => {
   try {
     const { exerciseId } = req.body;
 
@@ -25,22 +33,24 @@ router.post('/toggle', auth, async (req, res) => {
       return res.status(400).json({ message: 'Exercise ID is required' });
     }
 
-    const existingFavorite = await Favorite.findOne({
-      userId: req.user._id,
-      exerciseId
-    });
+    const favoritesRef = db.collection('favorites');
+    const snapshot = await favoritesRef
+      .where('userId', '==', req.user.uid)
+      .where('exerciseId', '==', exerciseId)
+      .get();
 
-    if (existingFavorite) {
+    if (!snapshot.empty) {
       // Remove from favorites
-      await Favorite.findByIdAndDelete(existingFavorite._id);
+      const doc = snapshot.docs[0];
+      await doc.ref.delete();
       res.json({ message: 'Removed from favorites', isFavorite: false });
     } else {
       // Add to favorites
-      const favorite = new Favorite({
-        userId: req.user._id,
-        exerciseId
+      await favoritesRef.add({
+        userId: req.user.uid,
+        exerciseId,
+        createdAt: new Date().toISOString()
       });
-      await favorite.save();
       res.json({ message: 'Added to favorites', isFavorite: true });
     }
   } catch (error) {
